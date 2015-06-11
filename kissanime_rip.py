@@ -10,6 +10,7 @@ from base64 import b64decode
 import os
 import re
 from urllib.request import urlretrieve
+from urllib.parse import urlparse
 
 USAGE = \
 """
@@ -32,15 +33,18 @@ Usage: kissanime-rip.py [--eps=n1-n2 | --eps-until=n | --eps-since=n] [--output=
         Using the streaming playlists can save you a lot of time and disk lifetime,
         but it obviously doesn't work offline and can be a pain to seek on slow connections.
     output:
-        Output folder for the playlist files. By default is the Anime-Name part of the URL."""
+        Output folder for the playlist files. By default is the show name in URL path.
+
+    Should work on KissCartoon and in case the domain changes, but it's not tested."""
 
 
 class KissanimeRipper(object):
     """Extract streaming URLs from KissAnime and save them to .m3u8 playlists
     or download them"""
-    def __init__(self, args, wait=(5, 10), url_base='http://kissanime.com'):
+    def __init__(self, args, wait=(5, 10)):
         self.args = self._parse_args(args)
-        if not self.args.get('url'):
+        _url = self.args.get('url')
+        if _url and not _url.geturl():
             raise Exception(USAGE)
         self.scraper = cfscrape.create_scraper()
         # Protection against possible scraping countermeasures.
@@ -48,7 +52,7 @@ class KissanimeRipper(object):
         # You can't watch a 25-min ep in 10 seconds anyway.
         self.WAIT_RANGE = wait
         # other config
-        self.URL_BASE = url_base
+        self.URL_BASE = '{url.scheme}://{url.netloc}'.format(url=_url)
 
     def get_episodes(self):
         """Get the selected episodes. Either save the stream URLs as playlists
@@ -77,12 +81,12 @@ class KissanimeRipper(object):
         start = 0
         end = len(self.episode_urls_and_titles)
         if self.args.get('eps='):
-            start, end = map(int, self.args['eps='].split('-'))
+            start, end = self.args['eps=']
             start -= 1
         elif self.args.get('eps-until='):
-            end = int(self.args['eps-until='])
+            end = self.args['eps-until=']
         elif self.args.get('eps-since='):
-            start = int(self.args['eps-since=']) - 1
+            start = self.args['eps-since='] - 1
         # all new episodes
         else:
             downloaded = sorted(os.listdir(self.folder),
@@ -127,24 +131,31 @@ class KissanimeRipper(object):
         if self.args.get('output='):
             return self._sanitize_filename(self.args['output='])
         else:
-            folder = self.args['url']
-            folder = folder[len(self.URL_BASE + '/Anime/'):]
+            # /Anime/Anime-name <-- split from '/' and take the rightmost part
+            folder = self.args['url'].path.split('/', 2)[-1]
             return self._sanitize_filename(folder)
 
     def _parse_args(self, input_arguments):
         """Parse the command line arguments and return them as a dictionary."""
-        recognized_arguments = ['--eps=', '--eps-until=', '--eps-since=',
-            '--output=', '--download']
         arg_container = dict()
         for inp_arg in input_arguments:
-            for recog_arg in recognized_arguments:
-                if inp_arg.startswith(recog_arg):
-                    arg_container[recog_arg[2:]] = \
-                        inp_arg[len(recog_arg):] or True
-                    break
+            if inp_arg.startswith('--eps='):
+                arg_container['eps='] = tuple(map(
+                    int, inp_arg[len('--eps='):].split('-')))
+            elif inp_arg.startswith('--eps-until='):
+                arg_container['eps-until='] = int(
+                    inp_arg[len('--eps-until='):])
+            elif inp_arg.startswith('--eps-since='):
+                arg_container['eps-since='] = int(
+                    inp_arg[len('--eps-since='):])
+            elif inp_arg.startswith('--output='):
+                arg_container['output='] = inp_arg[len('--output='):]
+            elif inp_arg == '--download':
+                arg_container['download'] = True
+            elif inp_arg.startswith('http'):
+                arg_container['url'] = urlparse(inp_arg)
             else:
-                arg_container['url'] = inp_arg
-
+                print('Unknown argument: {}; ignored.'.format(inp_arg))
         return arg_container
 
     def _soup(self, url):
@@ -155,7 +166,7 @@ class KissanimeRipper(object):
 
     def _episode_urls_and_titles(self):
         """Get episode page URLs and titles from the episode listing."""
-        page = self._soup(self.args['url'])
+        page = self._soup(self.args['url'].geturl())
         urls = page.find('table', {'class': 'listing'}).find_all('a')
         ret = []
         for a in reversed(urls):
