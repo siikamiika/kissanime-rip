@@ -63,7 +63,7 @@ Usage:  kissanime-rip.py
 
 
 class KissanimeRipper(object):
-    """Extract streaming URLs from KissAnime and save them to .m3u8 playlists
+    """Extract streaming URLs from KissAnime and save them to .m3u playlists
     or download them"""
     def __init__(self, args, wait=(5, 10)):
         self.args = self._parse_args(args)
@@ -153,8 +153,8 @@ class KissanimeRipper(object):
         return start, end
 
     def _write_episode_playlist(self, url, title):
-        """Write the given URL and title to a .m3u8 playlist file."""
-        filename = self._sanitize_filename(title) + '.m3u8'
+        """Write the given URL and title to a .m3u playlist file."""
+        filename = self._sanitize_filename(title) + '.m3u'
         print('Writing stream URL to {}'.format(filename))
         filename = '{}/{}'.format(self.folder, filename).lstrip('/')
         with open(filename, 'w', encoding='utf-8') as f:
