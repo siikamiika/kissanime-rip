@@ -12,13 +12,24 @@ For more advanced use, see Usage.
         [--eps=n1-n2 | --eps-until=n | --eps-since=n]
         [--output=path]
         [--download]
-        "http://kissanime.com/Anime/Anime-Name/"
+        ["http://kissanime.com/Anime/Anime-Name" |
+        "path/to/old/download"]
 
-        By default, download all new episodes.
-        This means, if the newest one you have is
-        "Kawaii Uguu School Love Comedy Episode 9001.mp4",
-        it will download from 9002 onward.
-        If there are no episodes, it will download every single one of them.
+        Examples:
+            By default, everything is saved as a .m3u playlist. Add --download
+            to save the video files locally.
+            kissanime-rip.py
+                Downloads new episodes of the anime in the working directory.
+            kissanime-rip.py "path/to/old/download"
+                Downloads new episodes of the anime in the given path.
+            kissanime-rip.py "path/to/old/download" --download
+                Downloads new episodes of the anime in the given path
+                as video files.
+            kissanime-rip.py "http://kissanime.com/Anime/Anime-Name"
+                Downloads all episodes of Anime-Name to the folder "Anime-Name".
+                If the folder already exists, download all new episodes.
+            kissanime-rip.py "http://kissanime.com/Anime/Anime-Name" --eps=1-3
+                Downloads episodes 1, 2 and 3 of Anime-Name.
 
         Optional arguments for controlling downloaded episodes (choose one):
         eps:

@@ -14,17 +14,29 @@ from urllib.parse import urlparse
 
 USAGE = \
 """
-Usage:  kissanime-rip.py
-            [--eps=n1-n2 | --eps-until=n | --eps-since=n]
-            [--output=path]
-            [--download]
-            "http://kissanime.com/Anime/Anime-Name/"
+Usage:
+kissanime-rip.py
+    [--eps=n1-n2 | --eps-until=n | --eps-since=n]
+    [--output=path]
+    [--download]
+    ["http://kissanime.com/Anime/Anime-Name" |
+    "path/to/old/download"]
 
-    By default, download all new episodes.
-    This means, if the newest one you have is
-    "Kawaii Uguu School Love Comedy Episode 9001.mp4",
-    it will download from 9002 onward.
-    If there are no episodes, it will download every single one of them.
+    Examples:
+        By default, everything is saved as a .m3u playlist. Add --download
+        to save the video files locally.
+        kissanime-rip.py
+            Downloads new episodes of the anime in the working directory.
+        kissanime-rip.py "path/to/old/download"
+            Downloads new episodes of the anime in the given path.
+        kissanime-rip.py "path/to/old/download" --download
+            Downloads new episodes of the anime in the given path
+            as video files.
+        kissanime-rip.py "http://kissanime.com/Anime/Anime-Name"
+            Downloads all episodes of Anime-Name to the folder "Anime-Name".
+            If the folder already exists, download all new episodes.
+        kissanime-rip.py "http://kissanime.com/Anime/Anime-Name" --eps=1-3
+            Downloads episodes 1, 2 and 3 of Anime-Name.
 
     Optional arguments for controlling downloaded episodes (choose one):
     eps:
@@ -68,12 +80,6 @@ class KissanimeRipper(object):
     def __init__(self, args, wait=(5, 10)):
         self.args = self._parse_args(args)
         _url = self.args.get('url')
-        try:
-            __url = _url.geturl()
-        except Exception:
-            __url = ''
-        if not __url:
-            raise Exception(USAGE)
         self.scraper = cfscrape.create_scraper()
         # Protection against possible scraping countermeasures.
         # Better safe than sorry.
@@ -89,7 +95,7 @@ class KissanimeRipper(object):
         try:
             os.makedirs(self.folder)
         except Exception as e: print(e)
-
+        self._write_urlfile()
         if self.args.get('download'):
             process_ep = self._download_episode
         else:
@@ -99,6 +105,12 @@ class KissanimeRipper(object):
         for url, title in self.episode_urls_and_titles[start:end]:
             url = self._get_stream_url(url)
             process_ep(url, title)
+
+    def _write_urlfile(self):
+        urlfile = '{}/.kissanime'.format(self.folder)
+        if not os.path.isfile(urlfile):
+            with open(urlfile, 'w', encoding='utf-8') as f:
+                f.write(self.args['url'].geturl())
 
     def _initialize(self):
         """Get ready for extraction."""
@@ -156,7 +168,7 @@ class KissanimeRipper(object):
         """Write the given URL and title to a .m3u playlist file."""
         filename = self._sanitize_filename(title) + '.m3u'
         print('Writing stream URL to {}'.format(filename))
-        filename = '{}/{}'.format(self.folder, filename).lstrip('/')
+        filename = '{}/{}'.format(self.folder, filename)
         with open(filename, 'w', encoding='utf-8') as f:
             f.write("""#EXTM3U\n#EXTINF:-1,{}\n{}""".format(title, url))
 
@@ -165,12 +177,13 @@ class KissanimeRipper(object):
         The filename will be sanitized(title).mp4."""
         filename = self._sanitize_filename(title) + '.mp4'
         print('Downloading {}...'.format(title))
-        filename = '{}/{}'.format(self.folder, filename).lstrip('/')
+        filename = '{}/{}'.format(self.folder, filename)
         urlretrieve(url, filename=filename)
 
     def _sanitize_filename(self, fn):
         """Make sure that the filenames don't contain illegal characters."""
-        fn = re.sub(r'[/\\\.\"\']', '', fn)
+        fn = fn.replace('..', '')
+        fn = re.sub(r'[/\\\"\']', '', fn)
         return re.sub(r'[^a-zA-Z0-9\-\.\(\) ]', '_', fn)
 
     def _folder(self):
@@ -179,7 +192,9 @@ class KissanimeRipper(object):
         First checks if an explicit output folder is given.
         If not, parse something from the URL."""
         if self.args.get('output='):
-            return self._sanitize_filename(self.args['output='])
+            return self.args['output=']
+        elif self.nourl:
+            return self.args['old_dl']
         else:
             # /Anime/Anime-name <-- split from '/' and take the rightmost part
             folder = self.args['url'].path.split('/', 2)[-1]
@@ -187,6 +202,7 @@ class KissanimeRipper(object):
 
     def _parse_args(self, input_arguments):
         """Parse the command line arguments and return them as a dictionary."""
+        self.nourl = False
         arg_container = dict()
         for inp_arg in input_arguments:
             if inp_arg.startswith('--eps='):
@@ -217,7 +233,20 @@ class KissanimeRipper(object):
             elif inp_arg.startswith('http'):
                 arg_container['url'] = urlparse(inp_arg)
             else:
-                print('Unknown argument: {}; ignored.'.format(inp_arg))
+                if (os.path.isdir(inp_arg)):
+                    arg_container['old_dl'] = inp_arg
+                else:
+                    print('Unknown argument: {}; ignored.'.format(inp_arg))
+        if not arg_container.get('url'):
+            self.nourl = True
+            try:
+                if not arg_container.get('old_dl'):
+                    arg_container['old_dl'] = '.'
+                urlfile = '{}/.kissanime'.format(arg_container['old_dl'])
+                with open(urlfile, 'r', encoding='utf-8') as f:
+                    arg_container['url'] = urlparse(f.read().strip())
+            except Exception as e:
+                raise Exception(USAGE)
         return arg_container
 
     def _soup(self, url):
