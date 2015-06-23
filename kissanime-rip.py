@@ -12,13 +12,13 @@ import re
 from urllib.request import urlretrieve
 from urllib.parse import urlparse
 
-USAGE = \
-"""
+USAGE = """
 Usage:
 kissanime-rip.py
     [--eps=n1-n2 | --eps-until=n | --eps-since=n]
     [--output=path]
     [--download]
+    [--quality=quality]
     ["http://kissanime.com/Anime/Anime-Name" |
     "path/to/old/download"]
 
@@ -69,6 +69,11 @@ kissanime-rip.py
         --output="Kawaii Uguu School Love Comedy"
         Output folder for the playlist files. By default is the show name in
         URL path.
+    quality:
+        --quality=720
+        --quality=1080p
+        Select which quality to download. By default select the first option,
+        which should be the best quality.
 
     Should work on KissCartoon and in case the domain changes, but it's not
     tested."""
@@ -226,6 +231,9 @@ class KissanimeRipper(object):
                 except ValueError:
                     since = since.strip('"')
                 arg_container['eps-since='] = since
+            elif inp_arg.startswith('--quality='):
+                quality = inp_arg[len('--quality='):]
+                arg_container['quality='] = quality
             elif inp_arg.startswith('--output='):
                 arg_container['output='] = inp_arg[len('--output='):]
             elif inp_arg == '--download':
@@ -274,7 +282,16 @@ class KissanimeRipper(object):
         print('Waiting {}s before opening {}...'.format(wait_time, url))
         time.sleep(wait_time)
         page = self._soup(url)
-        obfuscated = page.find(id='selectQuality').option['value']
+        quality_selector = page.find(id='selectQuality')
+        quality = self.args.get('quality=')
+        try:
+            option = quality_selector.find(text=re.compile(quality)).parent
+        except (TypeError, AttributeError) as e:
+            option = page.find(id='selectQuality').option
+            if type(e) == AttributeError:
+                print('quality "{}" not found'.format(quality))
+        print('Selected quality: {}'.format(option.text))
+        obfuscated = option['value']
         deobfuscated = self.h4x(obfuscated)
         print('Stream URL: {}'.format(deobfuscated))
         return deobfuscated

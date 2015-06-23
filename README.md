@@ -12,6 +12,7 @@ For more advanced use, see Usage.
         [--eps=n1-n2 | --eps-until=n | --eps-since=n]
         [--output=path]
         [--download]
+        [--quality=quality]
         ["http://kissanime.com/Anime/Anime-Name" |
         "path/to/old/download"]
 
@@ -62,6 +63,11 @@ For more advanced use, see Usage.
             --output="Kawaii Uguu School Love Comedy"
             Output folder for the playlist files. By default is the show name in
             URL path.
+        quality:
+            --quality=720
+            --quality=1080p
+            Select which quality to download. By default select the first option,
+            which should be the best quality.
 
         Should work on KissCartoon and in case the domain changes, but it's not
         tested.
