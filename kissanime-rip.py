@@ -287,7 +287,7 @@ class KissanimeRipper(object):
         try:
             option = quality_selector.find(text=re.compile(quality)).parent
         except (TypeError, AttributeError) as e:
-            option = page.find(id='selectQuality').option
+            option = quality_selector.option
             if type(e) == AttributeError:
                 print('quality "{}" not found'.format(quality))
         print('Selected quality: {}'.format(option.text))
