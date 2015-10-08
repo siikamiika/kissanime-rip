@@ -238,6 +238,8 @@ class KissanimeRipper(object):
                 arg_container['output='] = inp_arg[len('--output='):]
             elif inp_arg == '--download':
                 arg_container['download'] = True
+            elif inp_arg == '--no-stream-url':
+                arg_container['no-stream-url'] = True
             elif inp_arg.startswith('http'):
                 arg_container['url'] = urlparse(inp_arg)
             else:
@@ -277,6 +279,8 @@ class KissanimeRipper(object):
         return ret
 
     def _get_stream_url(self, url):
+        if self.args.get('no-stream-url'):
+            return url
         """Scrape and decode the streaming url from the video viewer page."""
         wait_time = random.randint(*self.WAIT_RANGE)
         print('Waiting {}s before opening {}...'.format(wait_time, url))
